@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tumor Growth Dynamics & Entropic Modelling</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #cbd5e1;
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        .slider-thumb:hover {
+            opacity: 1;
+        }
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .slider-thumb::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="text-slate-800 p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Header / Context -->
+        <div class="lg:col-span-3 mb-4">
+            <h1 class="text-3xl font-bold text-slate-900">Cancer Growth Dynamics</h1>
+            <p class="text-slate-600 mt-2">
+                Modelling cellular proliferation using Logistic and Gompertzian functions. 
+                This simulates the request to "do the same for cancer" by mapping growth rates against entropic resistance (treatment/immune response).
+            </p>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="card p-6 lg:col-span-1 space-y-8">
+            <div>
+                <h2 class="text-xl font-semibold mb-4 text-blue-700">Model Parameters</h2>
+                
+                <!-- Growth Rate -->
+                <div class="mb-6">
+                    <div class="flex justify-between mb-2">
+                        <label class="font-medium text-sm">Proliferation Rate (r)</label>
+                        <span id="val-r" class="text-sm text-blue-600 font-mono">0.5</span>
+                    </div>
+                    <input type="range" min="0.1" max="2.0" step="0.05" value="0.5" class="slider-thumb" id="input-r">
+                    <p class="text-xs text-slate-500 mt-1">Speed of unchecked cellular division (Awareness Curvature aspect).</p>
+                </div>
+
+                <!-- Carrying Capacity -->
+                <div class="mb-6">
+                    <div class="flex justify-between mb-2">
+                        <label class="font-medium text-sm">Carrying Capacity (K)</label>
+                        <span id="val-k" class="text-sm text-blue-600 font-mono">100</span>
+                    </div>
+                    <input type="range" min="10" max="200" step="10" value="100" class="slider-thumb" id="input-k">
+                    <p class="text-xs text-slate-500 mt-1">Max size defined by nutrients/space (Contradiction Density limit).</p>
+                </div>
+
+                <!-- Initial Size -->
+                <div class="mb-6">
+                    <div class="flex justify-between mb-2">
+                        <label class="font-medium text-sm">Initial Tumor Size (P₀)</label>
+                        <span id="val-p0" class="text-sm text-blue-600 font-mono">10</span>
+                    </div>
+                    <input type="range" min="1" max="50" step="1" value="10" class="slider-thumb" id="input-p0">
+                </div>
+
+                <hr class="border-slate-200 my-6">
+
+                <!-- Treatment / Entropy Factor -->
+                <div class="mb-2">
+                    <div class="flex justify-between mb-2">
+                        <label class="font-medium text-sm text-emerald-700">Treatment / Entropy (Therapy)</label>
+                        <span id="val-therapy" class="text-sm text-emerald-600 font-mono">0</span>
+                    </div>
+                    <input type="range" min="0" max="1.0" step="0.01" value="0" class="slider-thumb bg-emerald-200" id="input-therapy" style="background: #d1fae5;">
+                    <p class="text-xs text-slate-500 mt-1">Introduction of entropy/healing agent to disrupt the curve.</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-xs">
+                <h3 class="font-bold mb-2">Mathematical Basis</h3>
+                <p class="mb-2"><strong>Logistic Model:</strong><br> \( P(t) = \frac{K}{1 + (\frac{K-P_0}{P_0})e^{-rt}} \)</p>
+                <p>This matches the structure of the graph you provided: <br> \( y = \frac{100}{1 + 9e^{-0.5x}} \)</p>
+            </div>
+        </div>
+
+        <!-- Visualization Panel -->
+        <div class="card p-6 lg:col-span-2 flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Growth Projection</h2>
+                <div class="flex gap-2 text-sm">
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span> Natural Growth</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> With Intervention</span>
+                </div>
+            </div>
+            
+            <div class="relative flex-grow w-full h-64 md:h-96">
+                <canvas id="growthChart"></canvas>
+            </div>
+
+            <div class="mt-6 grid grid-cols-2 gap-4">
+                <div class="p-4 bg-red-50 rounded-lg border border-red-100">
+                    <div class="text-xs text-red-600 uppercase font-bold tracking-wider">Projected Peak</div>
+                    <div class="text-2xl font-bold text-slate-800" id="stat-peak">100.0</div>
+                    <div class="text-xs text-slate-500">Volume units</div>
+                </div>
+                <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                    <div class="text-xs text-emerald-600 uppercase font-bold tracking-wider">Reduction Effect</div>
+                    <div class="text-2xl font-bold text-slate-800" id="stat-reduction">0%</div>
+                    <div class="text-xs text-slate-500">Deviation from unchecked growth</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const ctx = document.getElementById('growthChart').getContext('2d');
+        
+        // Initial State
+        let state = {
+            r: 0.5,       // Growth rate
+            K: 100,       // Carrying capacity
+            P0: 10,       // Initial population
+            therapy: 0.0, // Therapy/Entropy factor (0 to 1)
+            timeSteps: 20 // X-axis duration
+        };
+
+        // DOM Elements
+        const inputs = {
+            r: document.getElementById('input-r'),
+            K: document.getElementById('input-k'),
+            P0: document.getElementById('input-p0'),
+            therapy: document.getElementById('input-therapy')
+        };
+
+        const displays = {
+            r: document.getElementById('val-r'),
+            K: document.getElementById('val-k'),
+            P0: document.getElementById('val-p0'),
+            therapy: document.getElementById('val-therapy'),
+            peak: document.getElementById('stat-peak'),
+            reduction: document.getElementById('stat-reduction')
+        };
+
+        // --- Math Logic ---
+
+        // Standard Logistic Equation
+        // P(t) = K / (1 + ((K - P0) / P0) * e^(-r * t))
+        function logistic(t, r, K, P0) {
+            const A = (K - P0) / P0;
+            return K / (1 + A * Math.exp(-r * t));
+        }
+
+        // Modified Logistic with "Therapy" (simplified Gompertzian decay of growth rate)
+        // We model therapy as a reduction in 'r' over time or a reduction in 'K'
+        function logisticTherapy(t, r, K, P0, intensity) {
+            // Model: Therapy reduces the effective Carrying Capacity (K) and slightly dampens r
+            // High entropy/therapy disrupts the structure required for growth
+            
+            const effectiveK = K * (1 - (intensity * 0.8)); // Max 80% reduction in K
+            const effectiveR = r * (1 - (intensity * 0.2)); // Slight reduction in rate
+            
+            const A = (effectiveK - P0) / P0;
+            
+            // If P0 > effectiveK (tumor starts larger than suppressed capacity), it shrinks
+            // The standard logistic formula handles this naturally (decay curve)
+            
+            return effectiveK / (1 + A * Math.exp(-effectiveR * t));
+        }
+
+        // --- Chart Setup ---
+        
+        let chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 21}, (_, i) => i), // 0 to 20
+                datasets: [
+                    {
+                        label: 'Unchecked Growth',
+                        data: [],
+                        borderColor: '#3b82f6', // Blue
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 2,
+                        tension: 0.4,
+                        fill: false
+                    },
+                    {
+                        label: 'With Intervention',
+                        data: [],
+                        borderColor: '#10b981', // Emerald
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 3,
+                        borderDash: [5, 5],
+                        pointRadius: 2,
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time (Arbitrary Units)'
+                        },
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Tumor Volume / Size'
+                        },
+                        beginAtZero: true,
+                        suggestedMax: 120
+                    }
+                }
+            }
+        });
+
+        // --- Update Logic ---
+
+        function updateModel() {
+            // Read inputs
+            state.r = parseFloat(inputs.r.value);
+            state.K = parseFloat(inputs.K.value);
+            state.P0 = parseFloat(inputs.P0.value);
+            state.therapy = parseFloat(inputs.therapy.value);
+
+            // Update text displays
+            displays.r.innerText = state.r.toFixed(2);
+            displays.K.innerText = state.K;
+            displays.P0.innerText = state.P0;
+            displays.therapy.innerText = (state.therapy * 100).toFixed(0) + '%';
+
+            // Generate Data Points
+            const naturalData = [];
+            const therapyData = [];
+
+            for (let t = 0; t <= state.timeSteps; t++) {
+                naturalData.push(logistic(t, state.r, state.K, state.P0));
+                therapyData.push(logisticTherapy(t, state.r, state.K, state.P0, state.therapy));
+            }
+
+            // Update Chart
+            chart.data.datasets[0].data = naturalData;
+            chart.data.datasets[1].data = therapyData;
+            
+            // Adjust Y-axis scale to fit K comfortably
+            chart.options.scales.y.suggestedMax = state.K * 1.2;
+            chart.update();
+
+            // Update Stats
+            const finalNatural = naturalData[naturalData.length - 1];
+            const finalTherapy = therapyData[therapyData.length - 1];
+            
+            displays.peak.innerText = finalNatural.toFixed(1);
+            
+            // Calculate reduction percentage
+            let reduction = 0;
+            if (finalNatural > 0) {
+                reduction = ((finalNatural - finalTherapy) / finalNatural) * 100;
+            }
+            displays.reduction.innerText = reduction.toFixed(1) + '%';
+        }
+
+        // Event Listeners
+        Object.values(inputs).forEach(input => {
+            input.addEventListener('input', updateModel);
+        });
+
+        // Initialize
+        updateModel();
+
+    </script>
+</body>
+</html>
+
